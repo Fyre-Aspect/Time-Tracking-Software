@@ -43,7 +43,7 @@
         },
         "timeTracker.email.recipient": {
           "type": "string",
-          "default": "",
+          "default": "aamirtinwala7@gmail.com",
           "description": "Email address to receive daily reports"
         },
         "timeTracker.email.smtpHost": {
