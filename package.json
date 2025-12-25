@@ -1,0 +1,110 @@
+{
+  "name": "vscode-time-tracker",
+  "displayName": "Time Tracker",
+  "description": "Automatically tracks VS Code usage time, repositories worked on, and sends daily email summaries",
+  "version": "1.0.0",
+  "publisher": "aamir",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "timeTracker.showStats",
+        "title": "Time Tracker: Show Statistics"
+      },
+      {
+        "command": "timeTracker.sendReport",
+        "title": "Time Tracker: Send Email Report Now"
+      },
+      {
+        "command": "timeTracker.configureEmail",
+        "title": "Time Tracker: Configure Email Settings"
+      },
+      {
+        "command": "timeTracker.resetToday",
+        "title": "Time Tracker: Reset Today's Data"
+      }
+    ],
+    "configuration": {
+      "title": "Time Tracker",
+      "properties": {
+        "timeTracker.email.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable daily email reports"
+        },
+        "timeTracker.email.recipient": {
+          "type": "string",
+          "default": "",
+          "description": "Email address to receive daily reports"
+        },
+        "timeTracker.email.smtpHost": {
+          "type": "string",
+          "default": "smtp.gmail.com",
+          "description": "SMTP server hostname"
+        },
+        "timeTracker.email.smtpPort": {
+          "type": "number",
+          "default": 587,
+          "description": "SMTP server port"
+        },
+        "timeTracker.email.smtpUser": {
+          "type": "string",
+          "default": "",
+          "description": "SMTP username (email address)"
+        },
+        "timeTracker.email.sendTime": {
+          "type": "string",
+          "default": "18:00",
+          "description": "Time to send daily report (24-hour format HH:MM)"
+        },
+        "timeTracker.email.sendOnClose": {
+          "type": "boolean",
+          "default": true,
+          "description": "Send report when VS Code closes (if not already sent today)"
+        },
+        "timeTracker.tracking.idleThresholdMinutes": {
+          "type": "number",
+          "default": 3,
+          "description": "Minutes of inactivity before marking as idle"
+        },
+        "timeTracker.tracking.heartbeatIntervalSeconds": {
+          "type": "number",
+          "default": 30,
+          "description": "How often to check for activity (in seconds)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/nodemailer": "^6.4.14",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.7"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Fyre-Aspect/Time-Tracking-Software"
+  }
+}

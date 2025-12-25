@@ -1,0 +1,273 @@
+import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
+import { DailyData, TrackingSession, RepoSummary, getTodayDateString, LanguageTime } from './types';
+
+/**
+ * Service for persisting tracking data to JSON files
+ */
+export class StorageService {
+    private storagePath: string;
+    private currentDayData: DailyData | null = null;
+    private saveDebounceTimer: NodeJS.Timeout | null = null;
+
+    constructor(private context: vscode.ExtensionContext) {
+        this.storagePath = context.globalStorageUri.fsPath;
+        this.ensureStorageDirectory();
+    }
+
+    /**
+     * Ensure the storage directory exists
+     */
+    private ensureStorageDirectory(): void {
+        if (!fs.existsSync(this.storagePath)) {
+            fs.mkdirSync(this.storagePath, { recursive: true });
+        }
+    }
+
+    /**
+     * Get the file path for a specific date's data
+     */
+    private getDataFilePath(date: string): string {
+        return path.join(this.storagePath, `${date}.json`);
+    }
+
+    /**
+     * Load data for a specific date
+     */
+    public loadDailyData(date: string): DailyData {
+        const filePath = this.getDataFilePath(date);
+        
+        if (fs.existsSync(filePath)) {
+            try {
+                const content = fs.readFileSync(filePath, 'utf-8');
+                return JSON.parse(content) as DailyData;
+            } catch (error) {
+                console.error(`Error loading data for ${date}:`, error);
+            }
+        }
+
+        // Return empty daily data
+        return this.createEmptyDailyData(date);
+    }
+
+    /**
+     * Create empty daily data structure
+     */
+    private createEmptyDailyData(date: string): DailyData {
+        return {
+            date,
+            totalTime: 0,
+            activeTime: 0,
+            idleTime: 0,
+            sessions: [],
+            repositories: [],
+            languages: {},
+            emailSent: false
+        };
+    }
+
+    /**
+     * Get today's data, loading from file or creating new
+     */
+    public getTodayData(): DailyData {
+        const today = getTodayDateString();
+        
+        if (this.currentDayData && this.currentDayData.date === today) {
+            return this.currentDayData;
+        }
+
+        this.currentDayData = this.loadDailyData(today);
+        return this.currentDayData;
+    }
+
+    /**
+     * Save data for a specific date
+     */
+    public saveDailyData(data: DailyData): void {
+        const filePath = this.getDataFilePath(data.date);
+        
+        try {
+            fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+        } catch (error) {
+            console.error(`Error saving data for ${data.date}:`, error);
+            vscode.window.showErrorMessage(`Time Tracker: Failed to save tracking data`);
+        }
+    }
+
+    /**
+     * Save today's data with debouncing to avoid excessive writes
+     */
+    public saveTodayData(data: DailyData): void {
+        this.currentDayData = data;
+        
+        // Debounce saves to avoid too many file writes
+        if (this.saveDebounceTimer) {
+            clearTimeout(this.saveDebounceTimer);
+        }
+
+        this.saveDebounceTimer = setTimeout(() => {
+            this.saveDailyData(data);
+            this.saveDebounceTimer = null;
+        }, 5000); // Save every 5 seconds at most
+    }
+
+    /**
+     * Force immediate save of today's data
+     */
+    public forceSave(): void {
+        if (this.saveDebounceTimer) {
+            clearTimeout(this.saveDebounceTimer);
+            this.saveDebounceTimer = null;
+        }
+        
+        if (this.currentDayData) {
+            this.saveDailyData(this.currentDayData);
+        }
+    }
+
+    /**
+     * Add or update a session in today's data
+     */
+    public updateSession(session: TrackingSession): void {
+        const data = this.getTodayData();
+        
+        const existingIndex = data.sessions.findIndex(s => s.sessionId === session.sessionId);
+        if (existingIndex >= 0) {
+            data.sessions[existingIndex] = session;
+        } else {
+            data.sessions.push(session);
+        }
+
+        // Recalculate totals
+        this.recalculateTotals(data);
+        this.saveTodayData(data);
+    }
+
+    /**
+     * Recalculate daily totals from sessions
+     */
+    private recalculateTotals(data: DailyData): void {
+        data.totalTime = 0;
+        data.activeTime = 0;
+        data.idleTime = 0;
+        data.languages = {};
+        
+        const repoMap = new Map<string, RepoSummary>();
+
+        for (const session of data.sessions) {
+            data.totalTime += session.totalDuration;
+            data.activeTime += session.activeTime;
+            data.idleTime += session.idleTime;
+
+            // Aggregate languages
+            for (const [lang, time] of Object.entries(session.repositories.reduce((acc, repo) => {
+                for (const [l, t] of Object.entries(repo.languages)) {
+                    acc[l] = (acc[l] || 0) + t;
+                }
+                return acc;
+            }, {} as LanguageTime))) {
+                data.languages[lang] = (data.languages[lang] || 0) + time;
+            }
+
+            // Aggregate repositories
+            for (const repo of session.repositories) {
+                const existing = repoMap.get(repo.repoPath);
+                if (existing) {
+                    existing.totalTime += repo.timeSpent;
+                    if (!existing.branchesWorkedOn.includes(repo.branchName)) {
+                        existing.branchesWorkedOn.push(repo.branchName);
+                    }
+                    for (const file of repo.filesEdited) {
+                        if (!existing.filesEdited.includes(file)) {
+                            existing.filesEdited.push(file);
+                        }
+                    }
+                    for (const [lang, time] of Object.entries(repo.languages)) {
+                        existing.languages[lang] = (existing.languages[lang] || 0) + time;
+                    }
+                } else {
+                    repoMap.set(repo.repoPath, {
+                        repoName: repo.repoName,
+                        repoPath: repo.repoPath,
+                        branchesWorkedOn: [repo.branchName],
+                        totalTime: repo.timeSpent,
+                        filesEdited: [...repo.filesEdited],
+                        languages: { ...repo.languages }
+                    });
+                }
+            }
+        }
+
+        data.repositories = Array.from(repoMap.values());
+    }
+
+    /**
+     * Mark email as sent for today
+     */
+    public markEmailSent(): void {
+        const data = this.getTodayData();
+        data.emailSent = true;
+        data.emailSentAt = new Date().toISOString();
+        this.saveTodayData(data);
+        this.forceSave();
+    }
+
+    /**
+     * Check if email was already sent today
+     */
+    public wasEmailSentToday(): boolean {
+        const data = this.getTodayData();
+        return data.emailSent;
+    }
+
+    /**
+     * Get data for the last N days
+     */
+    public getHistoricalData(days: number): DailyData[] {
+        const result: DailyData[] = [];
+        const today = new Date();
+
+        for (let i = 0; i < days; i++) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            const data = this.loadDailyData(dateStr);
+            if (data.totalTime > 0) {
+                result.push(data);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Clean up old data files (older than 90 days)
+     */
+    public cleanupOldData(): void {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 90);
+
+        try {
+            const files = fs.readdirSync(this.storagePath);
+            for (const file of files) {
+                if (file.endsWith('.json')) {
+                    const dateStr = file.replace('.json', '');
+                    const fileDate = new Date(dateStr);
+                    if (fileDate < cutoffDate) {
+                        fs.unlinkSync(path.join(this.storagePath, file));
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error cleaning up old data:', error);
+        }
+    }
+
+    /**
+     * Dispose and save any pending data
+     */
+    public dispose(): void {
+        this.forceSave();
+    }
+}
