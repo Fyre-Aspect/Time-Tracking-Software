@@ -2,7 +2,7 @@
   "name": "vscode-time-tracker",
   "displayName": "Time Tracker",
   "description": "Automatically tracks VS Code usage time, repositories worked on, and sends daily email summaries",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "aamir",
   "engines": {
     "vscode": "^1.85.0"
