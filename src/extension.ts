@@ -93,11 +93,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 function showStatistics(context: vscode.ExtensionContext): void {
     const todayData = storageService.getTodayData();
     const weekData = storageService.getHistoricalData(7);
+    const aggregates = storageService.getAggregateTotals();
     
     StatsPanel.createOrShow(
         context.extensionUri,
         todayData,
-        weekData
+        weekData,
+        aggregates
     );
 }
 

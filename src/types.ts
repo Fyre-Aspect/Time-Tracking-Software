@@ -128,6 +128,7 @@ export interface EmailReportData {
     repositories: RepoReportData[];
     languages: LanguageReportData[];
     sessionCount: number;
+    aggregates: EmailAggregateDurations;
 }
 
 /**
@@ -152,9 +153,38 @@ export interface LanguageReportData {
 }
 
 /**
+ * Aggregated time ranges for email reports
+ */
+export interface EmailAggregateDurations {
+    overall: DurationParts;
+    weekToDate: DurationParts;
+    monthToDate: DurationParts;
+    yearToDate: DurationParts;
+}
+
+/**
+ * Aggregate totals across persisted history (milliseconds)
+ */
+export interface AggregateTotals {
+    overall: number;
+    weekToDate: number;
+    monthToDate: number;
+    yearToDate: number;
+}
+
+/**
+ * Parts of a duration used in multiple views
+ */
+export interface DurationParts {
+    hours: number;
+    minutes: number;
+    formatted: string;
+}
+
+/**
  * Helper to format milliseconds to hours and minutes
  */
-export function formatDuration(ms: number): { hours: number; minutes: number; formatted: string } {
+export function formatDuration(ms: number): DurationParts {
     const totalMinutes = Math.floor(ms / 60000);
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;

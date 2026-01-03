@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as nodemailer from 'nodemailer';
 import { 
     DailyData, 
+    AggregateTotals,
     EmailConfig, 
     EmailReportData, 
     RepoReportData, 
@@ -135,7 +136,8 @@ export class EmailService {
 
         try {
             const todayData = this.storage.getTodayData();
-            const reportData = this.prepareReportData(todayData);
+            const aggregates = this.storage.getAggregateTotals();
+            const reportData = this.prepareReportData(todayData, aggregates);
             
             if (reportData.totalHours === 0 && reportData.totalMinutes === 0) {
                 console.log('Time Tracker: No time tracked today, skipping email');
@@ -159,7 +161,7 @@ export class EmailService {
     /**
      * Prepare report data from daily tracking data
      */
-    private prepareReportData(data: DailyData): EmailReportData {
+    private prepareReportData(data: DailyData, aggregates: AggregateTotals): EmailReportData {
         const totalDuration = formatDuration(data.totalTime);
         const activeDuration = formatDuration(data.activeTime);
 
@@ -199,7 +201,13 @@ export class EmailService {
             activeMinutes: activeDuration.minutes,
             repositories,
             languages,
-            sessionCount: data.sessions.length
+            sessionCount: data.sessions.length,
+            aggregates: {
+                overall: formatDuration(aggregates.overall),
+                weekToDate: formatDuration(aggregates.weekToDate),
+                monthToDate: formatDuration(aggregates.monthToDate),
+                yearToDate: formatDuration(aggregates.yearToDate)
+            }
         };
     }
 
@@ -267,9 +275,11 @@ export class EmailService {
         h1 { color: #0066cc; border-bottom: 2px solid #0066cc; padding-bottom: 10px; }
         h2 { color: #444; margin-top: 30px; }
         .summary-box { background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        .stat { display: inline-block; margin-right: 30px; }
+        .stat { display: inline-block; margin-right: 30px; margin-bottom: 10px; }
         .stat-value { font-size: 24px; font-weight: bold; color: #0066cc; }
         .stat-label { font-size: 14px; color: #666; }
+        .stat-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+        .stat-grid .stat { flex: 1 1 45%; min-width: 140px; }
         table { width: 100%; border-collapse: collapse; margin: 15px 0; }
         th { background: #0066cc; color: white; padding: 10px; text-align: left; }
         .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #888; }
@@ -291,6 +301,26 @@ export class EmailService {
         <div class="stat">
             <div class="stat-value">${data.sessionCount}</div>
             <div class="stat-label">Sessions</div>
+        </div>
+    </div>
+
+    <h2>📆 Totals To Date</h2>
+    <div class="summary-box stat-grid">
+        <div class="stat">
+            <div class="stat-value">${formatTime(data.aggregates.weekToDate.hours, data.aggregates.weekToDate.minutes)}</div>
+            <div class="stat-label">This Week</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${formatTime(data.aggregates.monthToDate.hours, data.aggregates.monthToDate.minutes)}</div>
+            <div class="stat-label">This Month</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${formatTime(data.aggregates.yearToDate.hours, data.aggregates.yearToDate.minutes)}</div>
+            <div class="stat-label">This Year</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${formatTime(data.aggregates.overall.hours, data.aggregates.overall.minutes)}</div>
+            <div class="stat-label">All Time</div>
         </div>
     </div>
 
@@ -342,6 +372,13 @@ export class EmailService {
         text += `Total Time: ${formatTime(data.totalHours, data.totalMinutes)}\n`;
         text += `Active Coding: ${formatTime(data.activeHours, data.activeMinutes)}\n`;
         text += `Sessions: ${data.sessionCount}\n\n`;
+
+        text += 'TOTALS TO DATE\n';
+        text += '-'.repeat(20) + '\n';
+        text += `• This Week: ${formatTime(data.aggregates.weekToDate.hours, data.aggregates.weekToDate.minutes)}\n`;
+        text += `• This Month: ${formatTime(data.aggregates.monthToDate.hours, data.aggregates.monthToDate.minutes)}\n`;
+        text += `• This Year: ${formatTime(data.aggregates.yearToDate.hours, data.aggregates.yearToDate.minutes)}\n`;
+        text += `• All Time: ${formatTime(data.aggregates.overall.hours, data.aggregates.overall.minutes)}\n\n`;
 
         if (data.repositories.length > 0) {
             text += 'REPOSITORIES\n';

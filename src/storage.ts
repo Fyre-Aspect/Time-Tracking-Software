@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { DailyData, TrackingSession, RepoSummary, getTodayDateString, LanguageTime } from './types';
+import { AggregateTotals, DailyData, TrackingSession, RepoSummary, getTodayDateString, LanguageTime } from './types';
 
 /**
  * Service for persisting tracking data to JSON files
@@ -238,6 +238,87 @@ export class StorageService {
             }
         }
 
+        return result;
+    }
+
+    /**
+     * Get aggregated totals for overall, week, month, and year-to-date
+     */
+    public getAggregateTotals(): AggregateTotals {
+        const totals: AggregateTotals = {
+            overall: 0,
+            weekToDate: 0,
+            monthToDate: 0,
+            yearToDate: 0
+        };
+
+        const now = new Date();
+        const startOfWeek = this.getStartOfWeek(now);
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        startOfWeek.setHours(0, 0, 0, 0);
+        startOfMonth.setHours(0, 0, 0, 0);
+        startOfYear.setHours(0, 0, 0, 0);
+
+        const processedDates = new Set<string>();
+
+        const addData = (data: DailyData): void => {
+            if (!data?.date || processedDates.has(data.date)) {
+                return;
+            }
+
+            const dateObj = new Date(data.date);
+            if (Number.isNaN(dateObj.getTime())) {
+                return;
+            }
+
+            processedDates.add(data.date);
+            totals.overall += data.totalTime;
+
+            if (dateObj >= startOfYear) {
+                totals.yearToDate += data.totalTime;
+            }
+            if (dateObj >= startOfMonth) {
+                totals.monthToDate += data.totalTime;
+            }
+            if (dateObj >= startOfWeek) {
+                totals.weekToDate += data.totalTime;
+            }
+        };
+
+        // Always include in-memory today data to reflect unsaved changes
+        addData(this.getTodayData());
+
+        try {
+            const files = fs.readdirSync(this.storagePath);
+            for (const file of files) {
+                if (!file.endsWith('.json')) {
+                    continue;
+                }
+                const dateStr = file.replace('.json', '');
+                if (processedDates.has(dateStr)) {
+                    continue;
+                }
+
+                const data = this.loadDailyData(dateStr);
+                addData(data);
+            }
+        } catch (error) {
+            console.error('Error reading aggregate totals:', error);
+        }
+
+        return totals;
+    }
+
+    /**
+     * Calculate Monday as the start of the current week
+     */
+    private getStartOfWeek(date: Date): Date {
+        const result = new Date(date);
+        const day = result.getDay();
+        const diff = (day + 6) % 7; // Convert Sunday(0) to 6, Monday(1) to 0
+        result.setDate(result.getDate() - diff);
+        result.setHours(0, 0, 0, 0);
         return result;
     }
 
