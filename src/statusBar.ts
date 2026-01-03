@@ -88,7 +88,8 @@ export class StatsPanel {
     public static createOrShow(
         extensionUri: vscode.Uri,
         todayData: any,
-        weekData: any[]
+        weekData: any[],
+        aggregates: any
     ): void {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
@@ -96,7 +97,7 @@ export class StatsPanel {
 
         if (StatsPanel.currentPanel) {
             StatsPanel.currentPanel.panel.reveal(column);
-            StatsPanel.currentPanel.update(todayData, weekData);
+            StatsPanel.currentPanel.update(todayData, weekData, aggregates);
             return;
         }
 
@@ -111,24 +112,29 @@ export class StatsPanel {
         );
 
         StatsPanel.currentPanel = new StatsPanel(panel);
-        StatsPanel.currentPanel.update(todayData, weekData);
+        StatsPanel.currentPanel.update(todayData, weekData, aggregates);
     }
 
     /**
      * Update the panel content
      */
-    public update(todayData: any, weekData: any[]): void {
-        this.panel.webview.html = this.getHtmlContent(todayData, weekData);
+    public update(todayData: any, weekData: any[], aggregates: any): void {
+        this.panel.webview.html = this.getHtmlContent(todayData, weekData, aggregates);
     }
 
     /**
      * Generate HTML content for the webview
      */
-    private getHtmlContent(todayData: any, weekData: any[]): string {
+    private getHtmlContent(todayData: any, weekData: any[], aggregates: any): string {
         const formatTime = (ms: number) => {
             const { formatted } = formatDuration(ms);
             return formatted;
         };
+
+        const weekTotal = formatTime(aggregates.weekToDate || 0);
+        const monthTotal = formatTime(aggregates.monthToDate || 0);
+        const yearTotal = formatTime(aggregates.yearToDate || 0);
+        const overallTotal = formatTime(aggregates.overall || 0);
 
         const todayTotal = formatTime(todayData.totalTime);
         const todayActive = formatTime(todayData.activeTime);
@@ -186,12 +192,13 @@ export class StatsPanel {
             display: flex;
             gap: 20px;
             margin: 20px 0;
+            flex-wrap: wrap;
         }
         .card {
             background: var(--vscode-editor-inactiveSelectionBackground);
             padding: 20px;
             border-radius: 8px;
-            flex: 1;
+            flex: 1 1 180px;
             text-align: center;
         }
         .card-value {
@@ -274,6 +281,26 @@ export class StatsPanel {
         <div class="card">
             <div class="card-value">${todayData.repositories.length}</div>
             <div class="card-label">Repositories</div>
+        </div>
+    </div>
+
+    <h2>Totals To Date</h2>
+    <div class="summary-cards">
+        <div class="card">
+            <div class="card-value">${weekTotal}</div>
+            <div class="card-label">Last 7 Days</div>
+        </div>
+        <div class="card">
+            <div class="card-value">${monthTotal}</div>
+            <div class="card-label">This Month</div>
+        </div>
+        <div class="card">
+            <div class="card-value">${yearTotal}</div>
+            <div class="card-label">This Year</div>
+        </div>
+        <div class="card">
+            <div class="card-value">${overallTotal}</div>
+            <div class="card-label">All Time</div>
         </div>
     </div>
 
