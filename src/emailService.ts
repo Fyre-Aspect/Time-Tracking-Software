@@ -117,12 +117,14 @@ export class EmailService {
     public async sendDailyReport(): Promise<boolean> {
         if (!this.isConfigured()) {
             console.log('Time Tracker: Email not configured, skipping report');
+            vscode.window.showWarningMessage('Time Tracker: Email not configured. Run "Time Tracker: Configure Email Settings".');
             return false;
         }
 
         // Check if already sent today
         if (this.storage.wasEmailSentToday()) {
             console.log('Time Tracker: Email already sent today');
+            vscode.window.showInformationMessage('Time Tracker: Daily report already sent today.');
             return false;
         }
 
@@ -141,6 +143,7 @@ export class EmailService {
             
             if (reportData.totalHours === 0 && reportData.totalMinutes === 0) {
                 console.log('Time Tracker: No time tracked today, skipping email');
+                vscode.window.showInformationMessage('Time Tracker: No time tracked today. Nothing to send.');
                 return false;
             }
 
