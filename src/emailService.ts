@@ -206,6 +206,7 @@ export class EmailService {
             languages,
             sessionCount: data.sessions.length,
             aggregates: {
+                last7Days: formatDuration(aggregates.last7Days),
                 overall: formatDuration(aggregates.overall),
                 weekToDate: formatDuration(aggregates.weekToDate),
                 monthToDate: formatDuration(aggregates.monthToDate),
@@ -310,8 +311,8 @@ export class EmailService {
     <h2>📆 Totals To Date</h2>
     <div class="summary-box stat-grid">
         <div class="stat">
-            <div class="stat-value">${formatTime(data.aggregates.weekToDate.hours, data.aggregates.weekToDate.minutes)}</div>
-            <div class="stat-label">This Week</div>
+            <div class="stat-value">${formatTime(data.aggregates.last7Days.hours, data.aggregates.last7Days.minutes)}</div>
+            <div class="stat-label">Last 7 Days</div>
         </div>
         <div class="stat">
             <div class="stat-value">${formatTime(data.aggregates.monthToDate.hours, data.aggregates.monthToDate.minutes)}</div>
@@ -378,7 +379,7 @@ export class EmailService {
 
         text += 'TOTALS TO DATE\n';
         text += '-'.repeat(20) + '\n';
-        text += `• This Week: ${formatTime(data.aggregates.weekToDate.hours, data.aggregates.weekToDate.minutes)}\n`;
+        text += `• Last 7 Days: ${formatTime(data.aggregates.last7Days.hours, data.aggregates.last7Days.minutes)}\n`;
         text += `• This Month: ${formatTime(data.aggregates.monthToDate.hours, data.aggregates.monthToDate.minutes)}\n`;
         text += `• This Year: ${formatTime(data.aggregates.yearToDate.hours, data.aggregates.yearToDate.minutes)}\n`;
         text += `• All Time: ${formatTime(data.aggregates.overall.hours, data.aggregates.overall.minutes)}\n\n`;

@@ -156,6 +156,7 @@ export interface LanguageReportData {
  * Aggregated time ranges for email reports
  */
 export interface EmailAggregateDurations {
+    last7Days: DurationParts;
     overall: DurationParts;
     weekToDate: DurationParts;
     monthToDate: DurationParts;
@@ -166,6 +167,7 @@ export interface EmailAggregateDurations {
  * Aggregate totals across persisted history (milliseconds)
  */
 export interface AggregateTotals {
+    last7Days: number;
     overall: number;
     weekToDate: number;
     monthToDate: number;

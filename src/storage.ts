@@ -246,6 +246,7 @@ export class StorageService {
      */
     public getAggregateTotals(): AggregateTotals {
         const totals: AggregateTotals = {
+            last7Days: 0,
             overall: 0,
             weekToDate: 0,
             monthToDate: 0,
@@ -254,9 +255,12 @@ export class StorageService {
 
         const now = new Date();
         const startOfWeek = this.getStartOfWeek(now);
+        const startOfLast7 = new Date(now);
+        startOfLast7.setDate(now.getDate() - 6);
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const startOfYear = new Date(now.getFullYear(), 0, 1);
         startOfWeek.setHours(0, 0, 0, 0);
+        startOfLast7.setHours(0, 0, 0, 0);
         startOfMonth.setHours(0, 0, 0, 0);
         startOfYear.setHours(0, 0, 0, 0);
 
@@ -275,6 +279,9 @@ export class StorageService {
             processedDates.add(data.date);
             totals.overall += data.totalTime;
 
+            if (dateObj >= startOfLast7) {
+                totals.last7Days += data.totalTime;
+            }
             if (dateObj >= startOfYear) {
                 totals.yearToDate += data.totalTime;
             }
